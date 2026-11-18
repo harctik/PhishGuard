@@ -66,3 +66,4 @@ def scan_bulk(request: BulkScanRequest) -> List[Dict[str, Any]]:
     if len(request.urls) > 100:
         raise HTTPException(status_code=400, detail="Bulk limit is 100 URLs per request")
     return [evaluate_url(u.strip()) for u in request.urls if u.strip()]
+

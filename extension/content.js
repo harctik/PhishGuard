@@ -35,3 +35,4 @@
     document.getElementById("phishguard-dismiss").onclick = () => banner.remove();
   }
 })();
+

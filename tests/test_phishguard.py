@@ -64,3 +64,4 @@ def test_evaluate_clean_url():
     result = evaluate_url(clean_url)
     assert result["verdict"] == "SAFE"
     assert result["risk_score"] < 25
+

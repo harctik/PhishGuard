@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PhishGuard Inspector</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <div class="logo">🛡️ PhishGuard</div>
+    <span class="badge" id="status-badge">SECURE</span>
+  </div>
+
+  <div class="score-card">
+    <div class="score-label">ADVERSARIAL THREAT SCORE</div>
+    <div class="score-val" id="score-val">--</div>
+    <div class="score-sub" id="verdict-label">Scanning active tab...</div>
+  </div>
+
+  <div class="details">
+    <div class="section-title">Telemetry Signals</div>
+    <ul id="reasons-list">
+      <li>Analyzing domain entropy...</li>
+      <li>Checking for Punycode homoglyphs...</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <span>ENGINE: v1.0.0</span>
+    <span>STATUS: ACTIVE</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

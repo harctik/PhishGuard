@@ -1,148 +1,66 @@
-# PhishGuard: Real-Time Adversarial Phishing Intelligence
+# Vanguard
 
-An end-to-end browser defense architecture coupling a client-side Manifest V3 Chrome extension with an asynchronous FastAPI threat inspection backend to intercept zero-day credential harvesting and homoglyph domain attacks.
+![Vanguard: phishing URL scoring for Chrome](banner.png)
 
-![PhishGuard Banner](banner.png)
+Vanguard is a Manifest V3 Chrome extension with a small FastAPI service behind it. The service scores a web address against nine fixed rules and returns a score, a verdict and the rules that matched. It runs on your own machine.
 
----
+The repository is still named `PhishGuard`, the project's earlier name.
 
-## Technical Overview
+A static project page is in [docs/index.html](docs/index.html). Open it from a clone of the repository.
 
-Modern phishing infrastructure relies on rapid domain cycling, mixed-script homoglyph substitution, and short-lived hosts that easily bypass traditional static blacklists. Because DNS and reputation databases suffer from a multi-hour lag window, PhishGuard evaluates threats deterministically at request time directly within the client browser.
+## What it does
 
-The platform operates across two synchronized tiers:
-1. Client Tier (Manifest V3 Extension): Intercepts navigation events, monitors DOM hyperlink structures, and communicates asynchronously with the local inspection daemon without stalling render threads.
-2. Analysis Tier (FastAPI Backend): Processes candidate URLs against multi-factor heuristic evaluators, computing lexical risk factors, character entropy, and homoglyph code-points in sub-10ms latency.
+1. After a page loads, `content.js` sends that page's address to the service worker, which posts it to `http://localhost:8000/scan`.
+2. If the verdict is `MALICIOUS`, a dismissible warning bar appears at the top of the page.
+3. The toolbar popup scans the active tab each time you open it and shows the score and the matched rules.
 
----
+It looks only at the address. It does not read page content or links, block navigation, cache results or use a blocklist.
 
-## Extension Interface & Detection Telemetry
+## The popup
 
-The client-side extension provides immediate visual feedback regarding active browsing context. Threat metrics update automatically on tab activation or DOM navigation.
-
-### Zero-Day Threat Interception
-When navigating to high-entropy domains or homoglyph landing pages, the extension surfaces an alert banner, displays the composite threat score, and logs the specific heuristic triggers.
-
-![Threat Alert Interface](docs/screenshots/popup_threat_alert.png)
-
-### Verified Domain Inspection
-On legitimate web applications, the background worker completes verification silently, establishing low risk scores while monitoring anchor tags for lateral malicious redirects.
-
-![Secure Inspection Interface](docs/screenshots/popup_secure.png)
-
----
-
-## System Architecture
-
-```text
-[ Web Browser ]
-      |
-      +---> content.js (DOM Anchor Analysis & Warning Overlay)
-      |
-      +---> background.js (Asynchronous Service Worker Gateway)
-      |         |
-      |         | (HTTP POST /scan, non-blocking)
-      |         v
-[ FastAPI Threat Inspection Daemon ]
-      |
-      +---> Shannon Entropy Engine (Calculates character distribution randomness)
-      +---> Punycode & Mixed-Script Detector (Flags non-ASCII unicode code-points)
-      +---> Lexical Anomaly Analyzer (Extracts IP hosts, keyword density, path depth)
-      +---> Target Brand Heuristic (Flags unauthorized auth/banking impersonation)
-      |
-      +---> Multi-Factor Risk Synthesizer
-                |
-                v
-         [ Verdict: SAFE | SUSPICIOUS | MALICIOUS ]
-```
-
----
-
-## Detection Methodology & Heuristic Formulation
-
-### 1. Unicode Homoglyph & Punycode Identification
-Attackers frequently exploit visually indistinguishable characters from foreign scripts (such as substituting Latin 'a' with Cyrillic 'а' / U+0430). The homoglyph engine extracts the normalized domain name, identifies the presence of internationalized domain name (IDN) prefixes (`xn--`), and parses raw character byte values:
-
-$$\text{is\_spoofed}(D) = (D \text{ contains } \text{"xn--"}) \lor \exists c \in D : \text{ord}(c) > 127$$
-
-### 2. Shannon Entropy for DGA Detection
-Algorithmic Domain Generation (DGA) generates high-entropy hostnames designed to evade domain reputation filters. PhishGuard evaluates character-level entropy:
-
-$$H(X) = -\sum_{i=1}^{n} P(x_i) \log_2 P(x_i)$$
-
-Hostnames exceeding an entropy threshold ($H > 4.2$) are flagged for algorithmic randomness.
-
-### 3. Lexical and Structural Indicators
-The lexical parser assesses ten structural risk dimensions:
-
-| Risk Indicator | Evaluated Pattern | Score Weight |
+| High risk | No rule matched | Service not running |
 |---|---|---|
-| Raw IP Host | Numeric IPv4 / IPv6 addresses utilized as hostnames | +35 points |
-| Subdomain Chaining | Domain depth greater than three dot-delimited tiers | +20 points |
-| Credential Clustering | High-frequency keywords (`login`, `signin`, `verify`, `banking`, `wallet`) | +25 points |
-| Mixed Script Spoofing | Coexistence of Latin and non-Latin character sets | +40 points |
-| Punycode Encoding | Presence of `xn--` prefix with target brand substring | +50 points |
+| <img src="docs/screenshots/popup_threat_alert.png" width="260" alt="Popup with a high risk score"> | <img src="docs/screenshots/popup_secure.png" width="260" alt="Popup with a score of 0"> | <img src="docs/screenshots/popup_offline.png" width="260" alt="Popup reporting the page was not checked"> |
 
----
+These are headless Chrome renders of the shipped popup files. The `chrome.tabs` lookup was stubbed to supply a sample address, and the scores came from a locally running backend.
 
-## API Specification
+## Scoring rules
 
-The FastAPI inspection engine exposes high-throughput endpoints designed for local daemon or containerized cluster deployment.
+Points add up and are capped at 100. Source: [backend/detector.py](backend/detector.py).
 
-### Endpoint: POST /scan
+| Rule | Matches when | Points |
+|---|---|---|
+| Lookalike characters | The hostname has a punycode label (`xn--`) or any non-ASCII character | 45 |
+| Brand name | The hostname contains paypal, apple, google, microsoft, amazon, netflix, chase, wellsfargo, bankofamerica, binance or coinbase, and does not end with `<brand>.com` | 40 |
+| IP address | The host is a bare IPv4 address | 35 |
+| At sign | `@` appears anywhere in the address | 30 |
+| Risky ending | The hostname ends in `.xyz` `.top` `.buzz` `.club` `.work` `.cfd` `.sbs` or `.cam` | 20 |
+| Sign-in words | The path or query contains at least two of: login, signin, verify, secure, update, banking, account, password, credential, auth, wallet, recover | 20 |
+| Random-looking host | Shannon entropy of the hostname is above 4.2 | 20 |
+| Deep subdomains | Three or more labels sit in front of the last two | 15 |
+| No HTTPS | The scheme is not `https` (an address without a scheme is treated as `http`) | 10 |
 
-Request Payload:
-```json
-{
-  "url": "http://xn--pypal-4ve.com/login/verify.php"
-}
-```
+| Score | Verdict |
+|---|---|
+| 0 to 24 | `SAFE` |
+| 25 to 59 | `SUSPICIOUS` |
+| 60 to 100 | `MALICIOUS` |
 
-Response Payload:
-```json
-{
-  "url": "http://xn--pypal-4ve.com/login/verify.php",
-  "domain": "xn--pypal-4ve.com",
-  "risk_score": 96,
-  "verdict": "MALICIOUS",
-  "reasons": [
-    "Punycode homoglyph detected (Cyrillic substitution)",
-    "Shannon entropy: 4.82 (High DGA randomness)",
-    "Credential keyword clustering: [login, verify]"
-  ],
-  "latency_ms": 3.8
-}
-```
+`SAFE` means few or no rules matched. It does not mean the site is trustworthy.
 
----
+## Known limits
 
-## Repository Structure
+- A phishing page on an ordinary-looking or hijacked domain scores low.
+- The brand check has no dot boundary: `evilpaypal.com` is not flagged, while `google.co.uk` is.
+- Every internationalised domain gets the lookalike points, including legitimate ones.
+- IPv6 hosts are not matched by the IP rule.
+- If the service is unreachable, the service worker answers `SAFE` and no warning bar appears. The popup says the page was not checked.
+- Every page address, including its query string, is sent to port 8000 over plain HTTP.
+- The API allows cross-origin requests from any website. Keep it bound to localhost and stop it when you are not using it.
+- A malformed address such as `http://[abc` makes `/scan` return a 500.
 
-```text
-PhishGuard/
-├── backend/
-│   ├── main.py              # FastAPI server and routing definitions
-│   └── detector.py          # Entropy calculations, Punycode parser, and heuristics
-├── extension/
-│   ├── manifest.json        # Chrome Extension Manifest V3 configuration
-│   ├── background.js        # Service worker for non-blocking HTTP dispatch
-│   ├── content.js           # DOM anchor scanning and page banner injection
-│   └── popup/
-│       ├── popup.html       # Clean inspector popup UI
-│       ├── popup.css        # High-contrast dark theme styles
-│       └── popup.js         # Client-side state binding and telemetry rendering
-├── docs/screenshots/        # Extension interface captures and threat alerts
-├── tests/
-│   └── test_phishguard.py   # Unit test suite verifying entropy and heuristics
-├── pyproject.toml           # Python packaging configuration
-└── requirements.txt         # Runtime dependencies
-```
+## Setup
 
----
-
-## Local Installation & Quick Start
-
-### 1. Backend Service Setup
 ```bash
 git clone https://github.com/harctik/PhishGuard.git
 cd PhishGuard
@@ -154,18 +72,85 @@ venv\Scripts\activate
 source venv/bin/activate
 
 pip install -r requirements.txt
-uvicorn backend.main:app --reload --port 8000
+uvicorn backend.main:app --port 8000
 ```
 
-### 2. Browser Extension Installation
-1. Open Google Chrome and enter `chrome://extensions/` in the address bar.
-2. Enable Developer mode via the toggle switch in the upper right corner.
-3. Click Load unpacked and select the `PhishGuard/extension` directory.
-4. The PhishGuard shield badge will initialize in the browser extension toolbar.
+Then load the extension:
 
-### 3. Running Unit Tests
+1. Open `chrome://extensions/`.
+2. Turn on Developer mode.
+3. Choose Load unpacked and select the `PhishGuard/extension` folder.
+
+### Tests
+
 ```bash
 pytest tests/ -v
+```
+
+## API
+
+| Route | Purpose |
+|---|---|
+| `GET /` | Service name and version |
+| `GET /health` | Health check |
+| `POST /scan` | Score one address: `{"url": "..."}`. An empty address returns 400. |
+| `POST /scan/bulk` | Score up to 100 addresses: `{"urls": ["..."]}` |
+
+Response from `POST /scan` for `http://xn--pypal-4ve.com/login/verify.php`:
+
+```json
+{
+  "url": "http://xn--pypal-4ve.com/login/verify.php",
+  "hostname": "xn--pypal-4ve.com",
+  "risk_score": 75,
+  "verdict": "MALICIOUS",
+  "entropy": 3.6901,
+  "reasons": [
+    "Punycode or non-ASCII homoglyph character spoofing detected",
+    "Multiple credential-harvesting keywords found: login, verify",
+    "Unencrypted HTTP transmission"
+  ],
+  "features": {
+    "hostname": "xn--pypal-4ve.com",
+    "url_length": 41,
+    "is_ip_host": false,
+    "subdomain_count": 0,
+    "keywords_found": [
+      "login",
+      "verify"
+    ],
+    "brand_mentions": [],
+    "has_risky_tld": false,
+    "uses_https": false,
+    "has_at_symbol": false
+  },
+  "homoglyph_analysis": {
+    "is_punycode": true,
+    "has_mixed_script": false,
+    "non_ascii_count": 0,
+    "spoofed": true
+  }
+}
+```
+
+## Layout
+
+```text
+PhishGuard/
+├── backend/
+│   ├── main.py              # FastAPI routes
+│   └── detector.py          # Scoring rules
+├── extension/
+│   ├── manifest.json        # Manifest V3 configuration
+│   ├── background.js        # Service worker that calls the backend
+│   ├── content.js           # Sends the page address, draws the warning bar
+│   ├── icons/
+│   └── popup/               # Toolbar popup
+├── docs/                    # Project page, brand assets, popup renders
+├── tests/
+│   └── test_vanguard.py
+├── pyproject.toml
+└── requirements.txt
 ```
 
 ---

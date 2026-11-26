@@ -1,5 +1,5 @@
 """
-PhishGuard FastAPI Backend Service
+Vanguard FastAPI Backend Service
 Exposes REST endpoints for real-time URL inspection, bulk evaluation, and health checks.
 """
 
@@ -15,9 +15,9 @@ from detector import evaluate_url
 
 
 app = FastAPI(
-    title="PhishGuard Security API",
+    title="Vanguard API",
     version="1.0.0",
-    description="Real-time adversarial phishing intelligence and URL anomaly detection service."
+    description="Rule-based phishing risk scoring for URLs."
 )
 
 # Enable CORS for Chrome Extension integration
@@ -42,7 +42,7 @@ class BulkScanRequest(BaseModel):
 def root():
     return {
         "status": "online",
-        "service": "PhishGuard Real-Time Phishing Intelligence",
+        "service": "Vanguard URL Risk Service",
         "version": "1.0.0"
     }
 

@@ -1,4 +1,4 @@
-name: PhishGuard CI Pipeline
+name: Vanguard CI Pipeline
 
 on:
   push:

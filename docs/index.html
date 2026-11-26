@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vanguard: phishing URL scoring for Chrome</title>
+  <meta name="description" content="A Chrome extension and a small FastAPI service that score a web address against a fixed set of phishing rules, on your own machine.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Michroma&display=swap">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top wrap">
+    <a class="brand" href="#main">
+      <img src="assets/mark.svg" alt="" width="44" height="31">
+      <img src="assets/wordmark.svg" alt="Vanguard" width="137" height="12">
+    </a>
+    <nav aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#rules">Rules</a>
+      <a href="#limits">Limits</a>
+      <a href="#setup">Setup</a>
+      <a class="nav-code" href="https://github.com/harctik/PhishGuard">Source</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <h1>Read the address before you type the password.</h1>
+        <p>Vanguard is a Chrome extension with a small Python service behind it. It scores the address of the page you're on against nine fixed rules and tells you which ones matched. The service runs on your own machine.</p>
+        <p class="actions">
+          <a class="button" href="#setup">Run it locally</a>
+          <a class="link" href="#rules">See every rule</a>
+        </p>
+      </div>
+      <img class="hero-mark" src="assets/mark.svg" alt="">
+    </section>
+
+    <section class="bench" aria-labelledby="bench-title">
+      <div class="wrap">
+        <h2 id="bench-title">What the detector says</h2>
+        <p class="lede">Pick an address. These are saved outputs of <code>evaluate_url</code> from the code in this repository, including one miss and two false alarms. This page doesn't scan anything live, and none of these links is opened.</p>
+        <div class="bench-grid">
+          <div class="specimens" id="specimens" role="group" aria-label="Sample addresses"></div>
+          <div class="result" aria-live="polite">
+            <div class="result-head">
+              <div class="score"><span id="r-score">--</span><small>out of 100</small></div>
+              <div>
+                <span class="verdict" id="r-verdict"></span>
+                <p class="r-url" id="r-url"></p>
+              </div>
+            </div>
+            <div class="meter" aria-hidden="true">
+              <i id="r-fill"></i><b style="left:25%"></b><b style="left:60%"></b>
+            </div>
+            <div class="scale" aria-hidden="true"><span style="left:0">safe</span><span style="left:25%">suspicious 25</span><span style="left:60%">malicious 60</span></div>
+            <ul id="r-reasons"></ul>
+            <p class="r-note" id="r-note"></p>
+          </div>
+        </div>
+        <noscript><p>The sample viewer needs JavaScript. The rules table below describes the scoring in full.</p></noscript>
+      </div>
+    </section>
+
+    <section class="wrap block" id="how">
+      <h2>How it works</h2>
+      <ol class="flow">
+        <li>
+          <h3>The page loads</h3>
+          <p>Once the page has loaded, the content script hands its address to the extension's service worker. It checks only that address. It doesn't read the page's text or links.</p>
+        </li>
+        <li>
+          <h3>Your machine scores it</h3>
+          <p>The worker posts the address to <code>localhost:8000/scan</code>. The FastAPI service applies the rules, adds up the points and caps the total at 100.</p>
+        </li>
+        <li>
+          <h3>You get told</h3>
+          <p>At 60 or more, a warning bar appears at the top of the page. Open the toolbar popup on any tab to see the score and the matched rules. The popup scans again each time you open it.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section class="wrap block shots" aria-labelledby="shots-title">
+      <h2 id="shots-title">The popup</h2>
+      <p class="lede">Rendered in headless Chrome from the shipped popup files. The browser's tab lookup was stubbed to supply the sample address; scores come from a locally running backend.</p>
+      <div class="shot-row">
+        <figure><img src="screenshots/popup_threat_alert.png" width="320" alt="Popup showing a high risk score with three matched rules" loading="lazy"><figcaption>A lookalike sign-in address</figcaption></figure>
+        <figure><img src="screenshots/popup_secure.png" width="320" alt="Popup showing a score of 0 and a low risk badge" loading="lazy"><figcaption>No rule matched</figcaption></figure>
+        <figure><img src="screenshots/popup_offline.png" width="320" alt="Popup saying the backend is offline and the page was not checked" loading="lazy"><figcaption>Backend not running</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="rules" id="rules">
+      <div class="wrap">
+        <h2>Every rule, and what it's worth</h2>
+        <p class="lede">The whole scoring model, as written in <code>backend/detector.py</code>. Points add up and stop at 100.</p>
+        <table>
+          <thead><tr><th scope="col">Rule</th><th scope="col">Matches when</th><th scope="col" class="pts">Points</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Lookalike characters</th><td>The hostname has a punycode label (<code>xn--</code>) or any non-ASCII character. Legitimate international domains match too.</td><td class="pts">45</td></tr>
+            <tr><th scope="row">Brand name</th><td>The hostname contains paypal, apple, google, microsoft, amazon, netflix, chase, wellsfargo, bankofamerica, binance or coinbase, and doesn't end with that name followed by <code>.com</code>.</td><td class="pts">40</td></tr>
+            <tr><th scope="row">IP address</th><td>The host is a bare IPv4 address. IPv6 isn't checked.</td><td class="pts">35</td></tr>
+            <tr><th scope="row">At sign</th><td><code>@</code> appears anywhere in the address.</td><td class="pts">30</td></tr>
+            <tr><th scope="row">Risky ending</th><td>The hostname ends in .xyz, .top, .buzz, .club, .work, .cfd, .sbs or .cam.</td><td class="pts">20</td></tr>
+            <tr><th scope="row">Sign-in words</th><td>The path or query contains at least two of: login, signin, verify, secure, update, banking, account, password, credential, auth, wallet, recover.</td><td class="pts">20</td></tr>
+            <tr><th scope="row">Random-looking host</th><td>The Shannon entropy of the hostname is above 4.2.</td><td class="pts">20</td></tr>
+            <tr><th scope="row">Deep subdomains</th><td>Three or more labels sit in front of the last two.</td><td class="pts">15</td></tr>
+            <tr><th scope="row">No HTTPS</th><td>The address doesn't use <code>https</code>. An address sent without a scheme is treated as <code>http</code>.</td><td class="pts">10</td></tr>
+          </tbody>
+        </table>
+        <p class="thresholds"><span><i class="dot safe"></i>0 to 24: safe</span><span><i class="dot warn"></i>25 to 59: suspicious</span><span><i class="dot bad"></i>60 to 100: malicious</span></p>
+      </div>
+    </section>
+
+    <section class="wrap block" id="limits">
+      <h2>Where it falls short</h2>
+      <p class="lede">Treat a low score as "no rule matched", never as "this site is fine".</p>
+      <dl class="limits">
+        <div><dt>It only reads the address</dt><dd>A phishing page on an ordinary-looking or hijacked domain will score low. There's no blocklist, reputation lookup or page analysis.</dd></div>
+        <div><dt>The brand check has a hole</dt><dd><code>evilpaypal.com</code> ends with <code>paypal.com</code>, so it isn't flagged. <code>google.co.uk</code> doesn't, so it is.</dd></div>
+        <div><dt>It warns after loading</dt><dd>Vanguard doesn't block navigation. The page has already loaded when the bar appears.</dd></div>
+        <div><dt>Quiet when offline</dt><dd>If the service isn't running, no warning bar appears. Only the popup tells you the page wasn't checked.</dd></div>
+        <div><dt>Full addresses are sent locally</dt><dd>Every page address, query string included, goes to the service on port 8000 over plain HTTP.</dd></div>
+        <div><dt>Open local API</dt><dd>The service accepts cross-origin requests from any site. Keep it bound to localhost and stop it when you aren't using it.</dd></div>
+      </dl>
+    </section>
+
+    <section class="wrap block" id="setup">
+      <h2>Run it locally</h2>
+      <div class="setup-grid">
+        <div>
+          <h3>1. Start the service</h3>
+          <p>The repository and its folder are still named <code>PhishGuard</code>.</p>
+<pre><code>git clone https://github.com/harctik/PhishGuard.git
+cd PhishGuard
+python -m venv venv
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # macOS, Linux
+pip install -r requirements.txt
+uvicorn backend.main:app --port 8000</code></pre>
+        </div>
+        <div>
+          <h3>2. Load the extension</h3>
+          <p>Open <code>chrome://extensions</code>, turn on Developer mode, choose Load unpacked and select the <code>extension</code> folder.</p>
+          <h3>API</h3>
+          <ul class="api">
+            <li><code>GET /</code> service name and version</li>
+            <li><code>GET /health</code> health check</li>
+            <li><code>POST /scan</code> <code>{"url": "…"}</code></li>
+            <li><code>POST /scan/bulk</code> <code>{"urls": […]}</code>, up to 100</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <img src="assets/mark.svg" alt="" width="44" height="31">
+      <p>Vanguard 1.0.0</p>
+      <a href="https://github.com/harctik/PhishGuard">github.com/harctik/PhishGuard</a>
+    </div>
+  </footer>
+
+  <script src="samples.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>

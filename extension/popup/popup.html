@@ -1,36 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>PhishGuard Inspector</title>
+  <title>Vanguard</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="header">
-    <div class="logo">PhishGuard</div>
-    <span class="badge" id="status-badge">SECURE</span>
-  </div>
+  <header class="header">
+    <div class="brand">
+      <img src="mark.svg" alt="" width="30">
+      <img src="wordmark.svg" alt="Vanguard" width="104">
+    </div>
+    <span class="badge idle" id="status-badge">CHECKING</span>
+  </header>
 
-  <div class="score-card">
-    <div class="score-label">ADVERSARIAL THREAT SCORE</div>
-    <div class="score-val" id="score-val">--</div>
-    <div class="score-sub" id="verdict-label">Scanning active tab...</div>
-  </div>
+  <main>
+    <section class="score-card">
+      <div class="score-label">Risk score, 0 to 100</div>
+      <div class="score-val" id="score-val">--</div>
+      <div class="score-sub" id="verdict-label" aria-live="polite">Checking this tab…</div>
+    </section>
 
-  <div class="details">
-    <div class="section-title">Telemetry Signals</div>
-    <ul id="reasons-list">
-      <li>Analyzing domain entropy...</li>
-      <li>Checking for Punycode homoglyphs...</li>
-    </ul>
-  </div>
+    <section class="details">
+      <h2 class="section-title">What was found</h2>
+      <ul id="reasons-list">
+        <li>Waiting for the local backend.</li>
+      </ul>
+    </section>
+  </main>
 
-  <div class="footer">
-    <span>ENGINE: v1.0.0</span>
-    <span>STATUS: ACTIVE</span>
-  </div>
+  <footer class="footer">
+    <span>Backend: localhost:8000</span>
+    <span>v1.0.0</span>
+  </footer>
 
   <script src="popup.js"></script>
 </body>
 </html>
-

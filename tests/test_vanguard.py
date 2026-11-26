@@ -1,5 +1,5 @@
 """
-Unit tests for PhishGuard Detection Engine.
+Unit tests for the Vanguard detection engine.
 Validates entropy calculations, homoglyph detection, lexical indicators, and FastAPI endpoints.
 """
 

@@ -1,6 +1,6 @@
 /**
- * PhishGuard Content Script
- * Scans page anchors for homoglyphs and suspicious credential targets.
+ * Vanguard content script
+ * Sends the current page URL for scoring and shows a warning banner on a MALICIOUS verdict.
  */
 
 (() => {
@@ -15,24 +15,33 @@
 
   function showPhishingBanner(threat) {
     const banner = document.createElement("div");
-    banner.id = "phishguard-warning-banner";
+    banner.id = "vanguard-warning-banner";
+    banner.setAttribute("role", "alert");
     banner.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; z-index: 2147483647;
-      background: #E63946; color: #FFFFFF; font-family: -apple-system, sans-serif;
-      padding: 14px 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 14px; font-weight: 600;
+      position: fixed; top: 0; left: 0; width: 100%; z-index: 2147483647; box-sizing: border-box;
+      background: #161616; color: #f4f3f0; border-bottom: 4px solid #e5484d;
+      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; text-align: left;
+      padding: 12px 20px; box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
     `;
-    banner.innerHTML = `
-      <div>
-        ⚠️ <strong>PHISHGUARD ALERT:</strong> This site exhibits strong phishing indicators (Risk Score: ${threat.risk_score}/100). Do NOT enter credentials.
-      </div>
-      <button id="phishguard-dismiss" style="background:#000;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">
-        Dismiss
-      </button>
+
+    const message = document.createElement("div");
+    const title = document.createElement("strong");
+    title.textContent = "Vanguard: this address looks like phishing. ";
+    title.style.color = "#ff7a7e";
+    message.append(title, `Risk score ${Number(threat.risk_score)}/100. Don't enter passwords or card details here.`);
+
+    const dismiss = document.createElement("button");
+    dismiss.id = "vanguard-dismiss";
+    dismiss.type = "button";
+    dismiss.textContent = "Dismiss";
+    dismiss.style.cssText = `
+      flex: none; background: #f4f3f0; color: #161616; border: 0; border-radius: 2px;
+      padding: 7px 16px; font: 600 13px system-ui, sans-serif; cursor: pointer;
     `;
+    dismiss.onclick = () => banner.remove();
+
+    banner.append(message, dismiss);
     document.body.prepend(banner);
-    document.getElementById("phishguard-dismiss").onclick = () => banner.remove();
   }
 })();
-

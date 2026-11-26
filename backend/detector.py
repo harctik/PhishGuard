@@ -1,5 +1,5 @@
 """
-PhishGuard Core Detection Engine
+Vanguard Core Detection Engine
 Provides multi-signal adversarial analysis:
 - Shannon entropy analysis (detects algorithmic domain generation)
 - Unicode Homoglyph & Punycode spoofing detection (mixed-script detection)

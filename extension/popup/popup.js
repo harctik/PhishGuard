@@ -7,24 +7,26 @@ function showUnchecked(label, badge, detail) {
   document.getElementById("reasons-list").replaceChildren(li);
 }
 
+const UNCHECKED = {
+  unsupported: ["This tab has no web address to check.", "NOT CHECKED", "Only http and https pages are scored."],
+  offline: ["Backend offline. Page not checked.", "OFFLINE", "Start the backend on localhost:8000, then reopen this popup."],
+  rejected: ["Page not checked.", "NOT CHECKED", "The backend did not return a score for this address."]
+};
+
 document.addEventListener("DOMContentLoaded", () => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs || !tabs[0] || !tabs[0].url) {
       showUnchecked("This tab has no address to check.", "NOT CHECKED", "There is nothing to score here.");
       return;
     }
-    const url = tabs[0].url;
-
-    fetch("http://localhost:8000/scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url })
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`Backend returned ${res.status}`);
-        return res.json();
-      })
+    scanUrl(tabs[0].url)
       .then((data) => {
+        setCheckedBadge(tabs[0].id, data);
+        if (data.verdict === "UNKNOWN") {
+          showUnchecked(...UNCHECKED[data.cause]);
+          return;
+        }
+
         const scoreVal = document.getElementById("score-val");
         const statusBadge = document.getElementById("status-badge");
         const verdictLabel = document.getElementById("verdict-label");
@@ -59,10 +61,6 @@ document.addEventListener("DOMContentLoaded", () => {
           li.innerText = "None of the URL rules matched. This does not prove the page is safe.";
           reasonsList.appendChild(li);
         }
-      })
-      .catch(() => {
-        showUnchecked("Backend offline. Page not checked.", "OFFLINE", "Start the backend on localhost:8000, then reopen this popup.");
       });
   });
 });
-

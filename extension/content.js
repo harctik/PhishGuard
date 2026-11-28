@@ -1,6 +1,8 @@
 /**
  * Vanguard content script
  * Sends the current page URL for scoring and shows a warning banner on a MALICIOUS verdict.
+ * An UNKNOWN verdict (not checked) draws nothing in the page; the service worker marks the
+ * toolbar icon with "?" instead.
  */
 
 (() => {

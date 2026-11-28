@@ -30,7 +30,8 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": true,
-        "has_mixed_script": false,
+        "is_idn": true,
+        "has_mixed_script": true,
         "non_ascii_count": 0,
         "spoofed": true
       }
@@ -68,6 +69,7 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": false,
+        "is_idn": false,
         "has_mixed_script": false,
         "non_ascii_count": 0,
         "spoofed": false
@@ -92,7 +94,7 @@ window.VANGUARD_SAMPLES = [
         "hostname": "192.168.10.5",
         "url_length": 32,
         "is_ip_host": true,
-        "subdomain_count": 2,
+        "subdomain_count": 0,
         "keywords_found": [
           "login",
           "secure"
@@ -104,6 +106,7 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": false,
+        "is_idn": false,
         "has_mixed_script": false,
         "non_ascii_count": 0,
         "spoofed": false
@@ -133,6 +136,7 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": false,
+        "is_idn": false,
         "has_mixed_script": false,
         "non_ascii_count": 0,
         "spoofed": false
@@ -140,54 +144,25 @@ window.VANGUARD_SAMPLES = [
     }
   },
   {
-    "label": "A miss: the brand check hole",
-    "note": "A miss. This lookalike should be flagged and is not.",
+    "label": "A brand name inside a longer name",
+    "note": "",
     "result": {
       "url": "https://evilpaypal.com/",
       "hostname": "evilpaypal.com",
-      "risk_score": 0,
-      "verdict": "SAFE",
+      "risk_score": 40,
+      "verdict": "SUSPICIOUS",
       "entropy": 3.3788,
-      "reasons": [],
+      "reasons": [
+        "Targeted brand spoofing detected: paypal"
+      ],
       "features": {
         "hostname": "evilpaypal.com",
         "url_length": 23,
         "is_ip_host": false,
         "subdomain_count": 0,
         "keywords_found": [],
-        "brand_mentions": [],
-        "has_risky_tld": false,
-        "uses_https": true,
-        "has_at_symbol": false
-      },
-      "homoglyph_analysis": {
-        "is_punycode": false,
-        "has_mixed_script": false,
-        "non_ascii_count": 0,
-        "spoofed": false
-      }
-    }
-  },
-  {
-    "label": "False alarm: a country domain",
-    "note": "A false alarm. This is Google's UK domain.",
-    "result": {
-      "url": "https://www.google.co.uk/",
-      "hostname": "www.google.co.uk",
-      "risk_score": 40,
-      "verdict": "SUSPICIOUS",
-      "entropy": 2.9835,
-      "reasons": [
-        "Targeted brand spoofing detected: google"
-      ],
-      "features": {
-        "hostname": "www.google.co.uk",
-        "url_length": 25,
-        "is_ip_host": false,
-        "subdomain_count": 2,
-        "keywords_found": [],
         "brand_mentions": [
-          "google"
+          "paypal"
         ],
         "has_risky_tld": false,
         "uses_https": true,
@@ -195,6 +170,7 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": false,
+        "is_idn": false,
         "has_mixed_script": false,
         "non_ascii_count": 0,
         "spoofed": false
@@ -202,16 +178,16 @@ window.VANGUARD_SAMPLES = [
     }
   },
   {
-    "label": "False alarm: an international domain",
-    "note": "A false alarm risk. This is the punycode form of münchen.de, and every international domain gets these points.",
+    "label": "An international domain",
+    "note": "This is the punycode form of münchen.de. No lookalike pattern matches, so it gets 15 points.",
     "result": {
       "url": "https://xn--mnchen-3ya.de/",
       "hostname": "xn--mnchen-3ya.de",
-      "risk_score": 45,
-      "verdict": "SUSPICIOUS",
+      "risk_score": 15,
+      "verdict": "SAFE",
       "entropy": 3.4104,
       "reasons": [
-        "Punycode or non-ASCII homoglyph character spoofing detected"
+        "Internationalised domain name (no lookalike pattern recognised)"
       ],
       "features": {
         "hostname": "xn--mnchen-3ya.de",
@@ -226,9 +202,74 @@ window.VANGUARD_SAMPLES = [
       },
       "homoglyph_analysis": {
         "is_punycode": true,
+        "is_idn": true,
         "has_mixed_script": false,
         "non_ascii_count": 0,
-        "spoofed": true
+        "spoofed": false
+      }
+    }
+  },
+  {
+    "label": "A miss: a digit swapped for a letter",
+    "note": "A miss. This lookalike should be flagged and is not.",
+    "result": {
+      "url": "https://paypa1.com/",
+      "hostname": "paypa1.com",
+      "risk_score": 0,
+      "verdict": "SAFE",
+      "entropy": 2.9219,
+      "reasons": [],
+      "features": {
+        "hostname": "paypa1.com",
+        "url_length": 19,
+        "is_ip_host": false,
+        "subdomain_count": 0,
+        "keywords_found": [],
+        "brand_mentions": [],
+        "has_risky_tld": false,
+        "uses_https": true,
+        "has_at_symbol": false
+      },
+      "homoglyph_analysis": {
+        "is_punycode": false,
+        "is_idn": false,
+        "has_mixed_script": false,
+        "non_ascii_count": 0,
+        "spoofed": false
+      }
+    }
+  },
+  {
+    "label": "False alarm: a word containing a brand",
+    "note": "A false alarm risk. \"pineapple\" contains \"apple\", so any such name is flagged.",
+    "result": {
+      "url": "https://www.pineapple.com/",
+      "hostname": "www.pineapple.com",
+      "risk_score": 40,
+      "verdict": "SUSPICIOUS",
+      "entropy": 3.2928,
+      "reasons": [
+        "Targeted brand spoofing detected: apple"
+      ],
+      "features": {
+        "hostname": "www.pineapple.com",
+        "url_length": 26,
+        "is_ip_host": false,
+        "subdomain_count": 1,
+        "keywords_found": [],
+        "brand_mentions": [
+          "apple"
+        ],
+        "has_risky_tld": false,
+        "uses_https": true,
+        "has_at_symbol": false
+      },
+      "homoglyph_analysis": {
+        "is_punycode": false,
+        "is_idn": false,
+        "has_mixed_script": false,
+        "non_ascii_count": 0,
+        "spoofed": false
       }
     }
   }

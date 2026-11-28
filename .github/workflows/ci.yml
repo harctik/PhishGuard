@@ -39,3 +39,8 @@ jobs:
         run: |
           pytest tests/ -v --tb=short
 
+      - name: Check and test extension scripts
+        run: |
+          for f in extension/*.js extension/popup/*.js; do node --check "$f"; done
+          node --test tests/extension.test.js
+

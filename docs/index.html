@@ -32,7 +32,7 @@
     <section class="hero wrap">
       <div class="hero-copy">
         <h1>Read the address before you type the password.</h1>
-        <p>Vanguard is a Chrome extension with a small Python service behind it. It scores the address of the page you're on against nine fixed rules and tells you which ones matched. The service runs on your own machine.</p>
+        <p>Vanguard is a Chrome extension with a small Python service behind it. It scores the address of the page you're on against ten fixed rules and tells you which ones matched. The service runs on your own machine.</p>
         <p class="actions">
           <a class="button" href="#setup">Run it locally</a>
           <a class="link" href="#rules">See every rule</a>
@@ -44,7 +44,7 @@
     <section class="bench" aria-labelledby="bench-title">
       <div class="wrap">
         <h2 id="bench-title">What the detector says</h2>
-        <p class="lede">Pick an address. These are saved outputs of <code>evaluate_url</code> from the code in this repository, including one miss and two false alarms. This page doesn't scan anything live, and none of these links is opened.</p>
+        <p class="lede">Pick an address. These are saved outputs of <code>evaluate_url</code> from the code in this repository, including one miss and one false alarm. This page doesn't scan anything live, and none of these links is opened.</p>
         <div class="bench-grid">
           <div class="specimens" id="specimens" role="group" aria-label="Sample addresses"></div>
           <div class="result" aria-live="polite">
@@ -72,7 +72,7 @@
       <ol class="flow">
         <li>
           <h3>The page loads</h3>
-          <p>Once the page has loaded, the content script hands its address to the extension's service worker. It checks only that address. It doesn't read the page's text or links.</p>
+          <p>Once the page has loaded, the content script hands its address to the extension's service worker, which drops the <code>#</code> fragment and masks any username or password. It checks only that address. It doesn't read the page's text or links.</p>
         </li>
         <li>
           <h3>Your machine scores it</h3>
@@ -80,7 +80,7 @@
         </li>
         <li>
           <h3>You get told</h3>
-          <p>At 60 or more, a warning bar appears at the top of the page. Open the toolbar popup on any tab to see the score and the matched rules. The popup scans again each time you open it.</p>
+          <p>At 60 or more, a warning bar appears at the top of the page. Open the toolbar popup on any tab to see the score and the matched rules. The popup scans again each time you open it. If a page can't be checked, the toolbar icon shows <code>?</code>.</p>
         </li>
       </ol>
     </section>
@@ -102,14 +102,15 @@
         <table>
           <thead><tr><th scope="col">Rule</th><th scope="col">Matches when</th><th scope="col" class="pts">Points</th></tr></thead>
           <tbody>
-            <tr><th scope="row">Lookalike characters</th><td>The hostname has a punycode label (<code>xn--</code>) or any non-ASCII character. Legitimate international domains match too.</td><td class="pts">45</td></tr>
-            <tr><th scope="row">Brand name</th><td>The hostname contains paypal, apple, google, microsoft, amazon, netflix, chase, wellsfargo, bankofamerica, binance or coinbase, and doesn't end with that name followed by <code>.com</code>.</td><td class="pts">40</td></tr>
+            <tr><th scope="row">Lookalike characters</th><td>After punycode is decoded, a hostname label mixes writing systems (Latin with Chinese, Japanese or Korean is allowed), is wholly Latin-looking Cyrillic or Greek, or imitates a listed brand. Punycode that doesn't decode also matches.</td><td class="pts">45</td></tr>
+            <tr><th scope="row">Internationalised name</th><td>Any other hostname with a punycode label (<code>xn--</code>) or a non-ASCII character. Not added on top of the rule above.</td><td class="pts">15</td></tr>
+            <tr><th scope="row">Brand name</th><td>The hostname contains paypal, apple, google, microsoft, amazon, netflix, chase, wellsfargo, bankofamerica, binance or coinbase, and its registrable domain isn't exactly that name on an accepted ending (.com, a listed co. or com. country ending, or .de .fr .it .es .nl .ca .in .ie .at .be .ch .se .pl).</td><td class="pts">40</td></tr>
             <tr><th scope="row">IP address</th><td>The host is a bare IPv4 address. IPv6 isn't checked.</td><td class="pts">35</td></tr>
             <tr><th scope="row">At sign</th><td><code>@</code> appears anywhere in the address.</td><td class="pts">30</td></tr>
             <tr><th scope="row">Risky ending</th><td>The hostname ends in .xyz, .top, .buzz, .club, .work, .cfd, .sbs or .cam.</td><td class="pts">20</td></tr>
             <tr><th scope="row">Sign-in words</th><td>The path or query contains at least two of: login, signin, verify, secure, update, banking, account, password, credential, auth, wallet, recover.</td><td class="pts">20</td></tr>
             <tr><th scope="row">Random-looking host</th><td>The Shannon entropy of the hostname is above 4.2.</td><td class="pts">20</td></tr>
-            <tr><th scope="row">Deep subdomains</th><td>Three or more labels sit in front of the last two.</td><td class="pts">15</td></tr>
+            <tr><th scope="row">Deep subdomains</th><td>Three or more labels sit in front of the registrable domain.</td><td class="pts">15</td></tr>
             <tr><th scope="row">No HTTPS</th><td>The address doesn't use <code>https</code>. An address sent without a scheme is treated as <code>http</code>.</td><td class="pts">10</td></tr>
           </tbody>
         </table>
@@ -122,11 +123,12 @@
       <p class="lede">Treat a low score as "no rule matched", never as "this site is fine".</p>
       <dl class="limits">
         <div><dt>It only reads the address</dt><dd>A phishing page on an ordinary-looking or hijacked domain will score low. There's no blocklist, reputation lookup or page analysis.</dd></div>
-        <div><dt>The brand check has a hole</dt><dd><code>evilpaypal.com</code> ends with <code>paypal.com</code>, so it isn't flagged. <code>google.co.uk</code> doesn't, so it is.</dd></div>
+        <div><dt>The brand check is blunt</dt><dd><code>pineapple.com</code> contains <code>apple</code>, so it's flagged, as are other domains the brands own. <code>paypa1.com</code> isn't. Brand names on accepted endings are trusted without an ownership check.</dd></div>
+        <div><dt>Short lookalike lists</dt><dd>The lookalike letters and two-part endings are short built-in lists. IPv6 hosts aren't matched by the IP rule.</dd></div>
         <div><dt>It warns after loading</dt><dd>Vanguard doesn't block navigation. The page has already loaded when the bar appears.</dd></div>
-        <div><dt>Quiet when offline</dt><dd>If the service isn't running, no warning bar appears. Only the popup tells you the page wasn't checked.</dd></div>
-        <div><dt>Full addresses are sent locally</dt><dd>Every page address, query string included, goes to the service on port 8000 over plain HTTP.</dd></div>
-        <div><dt>Open local API</dt><dd>The service accepts cross-origin requests from any site. Keep it bound to localhost and stop it when you aren't using it.</dd></div>
+        <div><dt>Quiet when offline</dt><dd>If the service isn't running, nothing appears in the page. The toolbar icon shows <code>?</code> and the popup says the page wasn't checked.</dd></div>
+        <div><dt>Full addresses are sent locally</dt><dd>Every web address, query string included, goes to <code>localhost:8000</code> over plain HTTP. Fragments are removed and any username or password is masked.</dd></div>
+        <div><dt>No API authentication</dt><dd>Browser access is limited to extensions and pages served from this machine, but other programs aren't restricted. Keep it bound to localhost.</dd></div>
       </dl>
     </section>
 
@@ -152,7 +154,7 @@ uvicorn backend.main:app --port 8000</code></pre>
             <li><code>GET /</code> service name and version</li>
             <li><code>GET /health</code> health check</li>
             <li><code>POST /scan</code> <code>{"url": "…"}</code></li>
-            <li><code>POST /scan/bulk</code> <code>{"urls": […]}</code>, up to 100</li>
+            <li><code>POST /scan/bulk</code> <code>{"urls": […]}</code>, up to 100 addresses of 8192 characters each</li>
           </ul>
         </div>
       </div>
